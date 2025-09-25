@@ -1,0 +1,82 @@
+const express = require("express");
+const bodyParser = require("body-parser");
+
+const app = express();
+const port = 3000;
+
+app.use(bodyParser.urlencoded({ extended: true })); // for form data
+app.use(bodyParser.json()); // for JSON
+app.use(express.static("public")); // serve static files (if needed)
+
+// In-memory card collection
+let cards = [];
+let nextId = 1;
+
+// HTML Home Page with Form
+app.get("/", (req, res) => {
+  let cardList = "<h2>Card Collection</h2>";
+  if (cards.length === 0) {
+    cardList += "<p>No cards added yet.</p>";
+  } else {
+    cardList += "<ul>";
+    cards.forEach(c => {
+      cardList += `<li>ID: ${c.id}, Suit: ${c.suit}, Value: ${c.value} 
+        <form action="/remove/${c.id}" method="POST" style="display:inline;">
+          <button type="submit">Delete</button>
+        </form>
+      </li>`;
+    });
+    cardList += "</ul>";
+  }
+
+  const form = `
+    <h2>Add a New Card</h2>
+    <form action="/add" method="POST">
+      <label>Suit: <input type="text" name="suit" required></label><br><br>
+      <label>Value: <input type="text" name="value" required></label><br><br>
+      <button type="submit">Add Card</button>
+    </form>
+  `;
+
+  res.send(`<h1>Playing Card Management</h1>${form}${cardList}`);
+});
+
+// Add card (from form or API)
+app.post("/add", (req, res) => {
+  const { suit, value } = req.body;
+  if (!suit || !value) {
+    return res.status(400).send("Suit and Value are required");
+  }
+  const newCard = { id: nextId++, suit, value };
+  cards.push(newCard);
+  res.redirect("/"); // redirect back to homepage
+});
+
+// Remove card (from form button)
+app.post("/remove/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = cards.findIndex(c => c.id === id);
+  if (index !== -1) {
+    cards.splice(index, 1);
+  }
+  res.redirect("/"); // refresh page
+});
+
+// JSON API (if you still want REST access)
+app.get("/cards", (req, res) => {
+  res.json(cards);
+});
+
+app.get("/cards/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const card = cards.find(c => c.id === id);
+  if (card) {
+    res.json(card);
+  } else {
+    res.status(404).json({ message: "Card not found" });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Server running at http://localhost:${port}`);
+});
