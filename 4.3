@@ -1,0 +1,198 @@
+const express = require('express');
+const app = express();
+const port = 3000;
+
+app.use(express.json());
+
+// In-memory data structure for seats
+let seats = {
+    "1": { "status": "available" },
+    "2": { "status": "available" },
+    "3": { "status": "available" },
+    "4": { "status": "available" },
+    "5": { "status": "available" }
+};
+
+// Store active locks
+const seatLocks = new Map();
+const LOCK_EXPIRY_MS = 60000; // 1 minute
+
+// Helper function to check if a lock is valid
+const isValidLock = (seatId, userId) => {
+    const lock = seatLocks.get(seatId);
+    if (!lock) return false;
+    
+    if (Date.now() - lock.lockedAt > LOCK_EXPIRY_MS) {
+        clearTimeout(lock.timeout);
+        seatLocks.delete(seatId);
+        seats[seatId].status = 'available';
+        return false;
+    }
+    
+    return lock.userId === userId;
+};
+
+// Helper function to set lock timeout
+const setLockTimeout = (seatId) => {
+    const timeout = setTimeout(() => {
+        if (seatLocks.has(seatId)) {
+            seatLocks.delete(seatId);
+            seats[seatId].status = 'available';
+            console.log(`Lock expired for seat ${seatId}`);
+        }
+    }, LOCK_EXPIRY_MS);
+    
+    return timeout;
+};
+
+// 1. Get all seats
+app.get('/seats', (req, res) => {
+    res.json(seats);
+});
+
+// 2. Lock a seat for booking
+app.post('/seats/:seatId/lock', (req, res) => {
+    const seatId = req.params.seatId;
+    const userId = req.body.userId;
+    
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    if (!seats[seatId]) {
+        return res.status(404).json({ error: 'Seat not found' });
+    }
+    
+    if (seats[seatId].status === 'booked') {
+        return res.status(409).json({ error: 'Seat is already booked' });
+    }
+    
+    const existingLock = seatLocks.get(seatId);
+    if (existingLock) {
+        if (isValidLock(seatId, existingLock.userId)) {
+            return res.status(409).json({ 
+                error: 'Seat is already locked by another user',
+                lockedBy: existingLock.userId,
+                lockedAt: existingLock.lockedAt
+            });
+        }
+    }
+    
+    // Lock the seat
+    const lock = {
+        userId: userId,
+        lockedAt: Date.now(),
+        timeout: setLockTimeout(seatId)
+    };
+    
+    seatLocks.set(seatId, lock);
+    seats[seatId].status = 'locked';
+    
+    res.json({ 
+        success: true, 
+        message: `Seat ${seatId} locked for user ${userId}`,
+        lockedUntil: new Date(Date.now() + LOCK_EXPIRY_MS),
+        seat: seats[seatId]
+    });
+});
+
+// 3. Confirm booking (purchase seat)
+app.post('/seats/:seatId/confirm', (req, res) => {
+    const seatId = req.params.seatId;
+    const userId = req.body.userId;
+    
+    if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    if (!seats[seatId]) {
+        return res.status(404).json({ error: 'Seat not found' });
+    }
+    
+    if (!isValidLock(seatId, userId)) {
+        return res.status(409).json({ 
+            error: 'No valid lock found for this user on this seat',
+            suggestion: 'You need to lock the seat first before confirming'
+        });
+    }
+    
+    // Confirm the booking
+    seats[seatId].status = 'booked';
+    seats[seatId].bookedBy = userId;
+    seats[seatId].bookedAt = new Date().toISOString();
+    
+    // Clear the lock
+    const lock = seatLocks.get(seatId);
+    if (lock) {
+        clearTimeout(lock.timeout);
+        seatLocks.delete(seatId);
+    }
+    
+    res.json({ 
+        success: true, 
+        message: `Seat ${seatId} successfully booked for user ${userId}`,
+        seat: seats[seatId]
+    });
+});
+
+// 4. Release a lock
+app.post('/seats/:seatId/release', (req, res) => {
+    const seatId = req.params.seatId;
+    const userId = req.body.userId;
+    
+    if (!seats[seatId]) {
+        return res.status(404).json({ error: 'Seat not found' });
+    }
+    
+    const lock = seatLocks.get(seatId);
+    if (!lock) {
+        return res.status(409).json({ error: 'No active lock found for this seat' });
+    }
+    
+    if (lock.userId !== userId) {
+        return res.status(403).json({ error: 'You can only release your own locks' });
+    }
+    
+    // Release the lock
+    clearTimeout(lock.timeout);
+    seatLocks.delete(seatId);
+    seats[seatId].status = 'available';
+    
+    res.json({ 
+        success: true, 
+        message: `Lock released for seat ${seatId}`
+    });
+});
+
+// 5. Get seat status with lock information
+app.get('/seats/:seatId/status', (req, res) => {
+    const seatId = req.params.seatId;
+    
+    if (!seats[seatId]) {
+        return res.status(404).json({ error: 'Seat not found' });
+    }
+    
+    const response = { ...seats[seatId] };
+    const lock = seatLocks.get(seatId);
+    
+    if (lock && isValidLock(seatId, lock.userId)) {
+        response.lockInfo = {
+            lockedBy: lock.userId,
+            lockedAt: lock.lockedAt,
+            expiresIn: LOCK_EXPIRY_MS - (Date.now() - lock.lockedAt)
+        };
+    }
+    
+    res.json(response);
+});
+
+// Start server
+app.listen(port, () => {
+    console.log(`🎫 Concurrent Ticket Booking System running at http://localhost:${port}`);
+    console.log('Available endpoints:');
+    console.log('GET  /seats - Get all seats');
+    console.log('POST /seats/:seatId/lock - Lock a seat');
+    console.log('POST /seats/:seatId/confirm - Confirm booking');
+    console.log('POST /seats/:seatId/release - Release lock');
+    console.log('GET  /seats/:seatId/status - Get detailed seat status');
+});
