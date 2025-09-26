@@ -1,0 +1,106 @@
+const express = require('express');
+const app = express();
+const PORT = 3000;
+
+// Middleware to parse JSON
+app.use(express.json());
+
+// In-memory storage for cards
+let cards = [
+    { id: 1, suit: 'Hearts', value: 'Ace' },
+    { id: 2, suit: 'Spades', value: 'King' },
+    { id: 3, suit: 'Diamonds', value: 'Queen' }
+];
+let nextId = 4;
+
+// 1. GET /cards - Get all cards
+app.get('/cards', (req, res) => {
+    res.json({
+        success: true,
+        count: cards.length,
+        data: cards
+    });
+});
+
+// 2. GET /cards/:id - Get card by ID
+app.get('/cards/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const card = cards.find(c => c.id === id);
+    
+    if (!card) {
+        return res.status(404).json({
+            success: false,
+            message: 'Card not found'
+        });
+    }
+    
+    res.json({
+        success: true,
+        data: card
+    });
+});
+
+// 3. POST /cards - Add new card
+app.post('/cards', (req, res) => {
+    const { suit, value } = req.body;
+    
+    if (!suit || !value) {
+        return res.status(400).json({
+            success: false,
+            message: 'Suit and value are required'
+        });
+    }
+    
+    const newCard = {
+        id: nextId++,
+        suit: suit,
+        value: value
+    };
+    
+    cards.push(newCard);
+    
+    res.status(201).json({
+        success: true,
+        message: 'Card added successfully',
+        data: newCard
+    });
+});
+
+// 4. DELETE /cards/:id - Delete card by ID
+app.delete('/cards/:id', (req, res) => {
+    const id = parseInt(req.params.id);
+    const cardIndex = cards.findIndex(c => c.id === id);
+    
+    if (cardIndex === -1) {
+        return res.status(404).json({
+            success: false,
+            message: 'Card not found'
+        });
+    }
+    
+    const deletedCard = cards.splice(cardIndex, 1)[0];
+    
+    res.json({
+        success: true,
+        message: 'Card deleted successfully',
+        data: deletedCard
+    });
+});
+
+// Root endpoint
+app.get('/', (req, res) => {
+    res.json({
+        message: 'Playing Cards API is working!',
+        endpoints: [
+            'GET /cards - Get all cards',
+            'GET /cards/:id - Get card by ID',
+            'POST /cards - Add new card',
+            'DELETE /cards/:id - Delete card by ID'
+        ]
+    });
+});
+
+// Start server
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});
