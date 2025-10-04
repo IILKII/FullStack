@@ -1,0 +1,18 @@
+use db_43ymntxkx;
+db.products.insertMany([
+  { name: "Laptop", price: 55000, category: "Electronics" },
+  { name: "Shirt", price: 1200, category: "Clothing" },
+  { name: "Pizza", price: 500, category: "Food" }
+])
+print("📌 All Products in Database:");
+printjson(db.products.find().toArray());
+print("📌 Electronics Products:");
+printjson(db.products.find({ category: "Electronics" }).toArray());
+print("📌 Products with price greater than 1000:");
+printjson(db.products.find({ price: { $gt: 1000 } }).toArray());
+db.products.updateOne(
+  { name: "Laptop" },
+  { $set: { price: 60000 } }
+)
+print("📌 Final Products after simulated update/delete:");
+printjson(db.products.find().toArray());
