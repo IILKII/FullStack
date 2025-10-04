@@ -1,18 +1,162 @@
-use db_43ymntxkx;
-db.products.insertMany([
-  { name: "Laptop", price: 55000, category: "Electronics" },
-  { name: "Shirt", price: 1200, category: "Clothing" },
-  { name: "Pizza", price: 500, category: "Food" }
-])
-print("📌 All Products in Database:");
-printjson(db.products.find().toArray());
-print("📌 Electronics Products:");
-printjson(db.products.find({ category: "Electronics" }).toArray());
-print("📌 Products with price greater than 1000:");
-printjson(db.products.find({ price: { $gt: 1000 } }).toArray());
-db.products.updateOne(
-  { name: "Laptop" },
-  { $set: { price: 60000 } }
-)
-print("📌 Final Products after simulated update/delete:");
-printjson(db.products.find().toArray());
+const express = require("express");
+const bodyParser = require("body-parser");
+
+const app = express();
+app.use(bodyParser.json());
+
+// In-memory storage
+let products = [
+  { 
+    id: 1, 
+    name: "Sample Laptop", 
+    price: 999, 
+    category: "Electronics",
+    createdAt: new Date()
+  },
+  { 
+    id: 2, 
+    name: "Sample T-Shirt", 
+    price: 25, 
+    category: "Clothing",
+    createdAt: new Date()
+  }
+];
+
+let nextId = 3;
+
+// CREATE
+app.post("/products", (req, res) => {
+  try {
+    const { name, price, category } = req.body;
+    
+    if (!name || name.length < 3) {
+      return res.status(400).json({ error: "Name is required and must be at least 3 characters" });
+    }
+    
+    if (!price || price < 1) {
+      return res.status(400).json({ error: "Price is required and must be at least 1" });
+    }
+
+    const validCategories = ["Electronics", "Clothing", "Food", "Other"];
+    const productCategory = validCategories.includes(category) ? category : "Other";
+
+    const newProduct = {
+      id: nextId++,
+      name,
+      price: Number(price),
+      category: productCategory,
+      createdAt: new Date()
+    };
+
+    products.push(newProduct);
+    
+    res.status(201).json({
+      message: "Product created successfully",
+      product: newProduct
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// READ ALL
+app.get("/products", (req, res) => {
+  try {
+    res.json({
+      count: products.length,
+      products: products.sort((a, b) => b.id - a.id)
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// READ SINGLE
+app.get("/products/:id", (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const product = products.find(p => p.id === productId);
+    
+    if (!product) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    
+    res.json(product);
+  } catch (err) {
+    res.status(400).json({ error: "Invalid product ID" });
+  }
+});
+
+// UPDATE
+app.put("/products/:id", (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const productIndex = products.findIndex(p => p.id === productId);
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const { name, price, category } = req.body;
+    const validCategories = ["Electronics", "Clothing", "Food", "Other"];
+
+    products[productIndex] = {
+      ...products[productIndex],
+      ...(name && { name }),
+      ...(price && { price: Number(price) }),
+      ...(category && { category: validCategories.includes(category) ? category : "Other" })
+    };
+
+    res.json({
+      message: "Product updated successfully",
+      product: products[productIndex]
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// DELETE
+app.delete("/products/:id", (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    const productIndex = products.findIndex(p => p.id === productId);
+    
+    if (productIndex === -1) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+
+    const deletedProduct = products.splice(productIndex, 1)[0];
+    
+    res.json({ 
+      message: "Product deleted successfully",
+      deletedProduct
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Root route
+app.get("/", (req, res) => {
+  res.json({
+    message: "🚀 Product CRUD API is running!",
+    status: "Server is active and listening",
+    endpoints: {
+      "GET /": "API info (this page)",
+      "POST /products": "Create a new product",
+      "GET /products": "Get all products", 
+      "GET /products/:id": "Get single product",
+      "PUT /products/:id": "Update product",
+      "DELETE /products/:id": "Delete product"
+    }
+  });
+});
+
+// Start Server - Using port 8080 to avoid conflicts
+const PORT = 8080;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📋 Access the API at: http://localhost:${PORT}`);
+  console.log(`✅ Server started successfully!`);
+});
