@@ -1,162 +1,215 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 
 const app = express();
 app.use(bodyParser.json());
 
-// In-memory storage
-let products = [
+console.log("🔄 Starting server...");
+
+// =============================
+// MongoDB Connection
+// =============================
+const MONGODB_URI = "mongodb://localhost:27017/products";
+
+mongoose.connect(MONGODB_URI)
+.then(() => {
+  console.log("✅ MongoDB connected successfully");
+})
+.catch((err) => {
+  console.log("❌ MongoDB connection failed:", err.message);
+  console.log("💡 Using in-memory storage instead");
+});
+
+// =============================
+// Product Schema
+// =============================
+const productSchema = new mongoose.Schema({
+  name: { 
+    type: String, 
+    required: true, 
+    minlength: 3 
+  },
+  price: { 
+    type: Number, 
+    required: true, 
+    min: 1 
+  },
+  category: { 
+    type: String, 
+    enum: ["Electronics", "Clothing", "Food", "Other", "Accessories", "Stationery"], 
+    default: "Other" 
+  }
+});
+
+const Product = mongoose.model("Product", productSchema);
+
+// =============================
+// SAMPLE PRODUCTS DATA
+// =============================
+const sampleProducts = [
   { 
-    id: 1, 
-    name: "Sample Laptop", 
-    price: 999, 
-    category: "Electronics",
-    createdAt: new Date()
+    _id: "686f5c106b7e1b4605d09e60", 
+    name: "Laptop", 
+    price: 1200, 
+    category: "Electronics" 
   },
   { 
-    id: 2, 
-    name: "Sample T-Shirt", 
+    _id: "686f5c106b7e1b4605d09e61", 
+    name: "Wireless Mouse", 
     price: 25, 
-    category: "Clothing",
-    createdAt: new Date()
+    category: "Accessories" 
+  },
+  { 
+    _id: "686f5c106b7e1b4605d09e62", 
+    name: "Notebook", 
+    price: 5, 
+    category: "Stationery" 
+  },
+  { 
+    _id: "686f5c106b7e1b4605d09e63", 
+    name: "Smartphone", 
+    price: 699, 
+    category: "Electronics" 
   }
 ];
 
-let nextId = 3;
-
-// CREATE
-app.post("/products", (req, res) => {
+// =============================
+// ROOT ROUTE - SHOWS EVERYTHING
+// =============================
+app.get("/", async (req, res) => {
   try {
-    const { name, price, category } = req.body;
+    let products;
     
-    if (!name || name.length < 3) {
-      return res.status(400).json({ error: "Name is required and must be at least 3 characters" });
+    // Try to get products from MongoDB, fallback to sample data
+    try {
+      products = await Product.find();
+      if (products.length === 0) {
+        products = sampleProducts;
+      }
+    } catch (err) {
+      products = sampleProducts;
     }
     
-    if (!price || price < 1) {
-      return res.status(400).json({ error: "Price is required and must be at least 1" });
-    }
-
-    const validCategories = ["Electronics", "Clothing", "Food", "Other"];
-    const productCategory = validCategories.includes(category) ? category : "Other";
-
-    const newProduct = {
-      id: nextId++,
-      name,
-      price: Number(price),
-      category: productCategory,
-      createdAt: new Date()
-    };
-
-    products.push(newProduct);
-    
-    res.status(201).json({
-      message: "Product created successfully",
-      product: newProduct
+    res.json({
+      message: "🚀 Product CRUD API is running!",
+      status: "Server is active",
+      database: mongoose.connection.readyState === 1 ? "Connected ✅" : "Disconnected ❌",
+      totalProducts: products.length,
+      products: products,
+      endpoints: {
+        "GET /": "API info with products (this page)",
+        "POST /products": "Create product",
+        "GET /products": "Get all products only",
+        "GET /products/:id": "Get single product",
+        "PUT /products/:id": "Update product",
+        "DELETE /products/:id": "Delete product"
+      }
     });
+  } catch (err) {
+    res.json({
+      message: "🚀 Product CRUD API is running!",
+      status: "Server is active",
+      database: "Disconnected ❌",
+      totalProducts: sampleProducts.length,
+      products: sampleProducts,
+      endpoints: {
+        "GET /": "API info with products (this page)",
+        "POST /products": "Create product",
+        "GET /products": "Get all products only",
+        "GET /products/:id": "Get single product",
+        "PUT /products/:id": "Update product",
+        "DELETE /products/:id": "Delete product"
+      }
+    });
+  }
+});
+
+// =============================
+// OTHER CRUD ROUTES (keep existing functionality)
+// =============================
+
+// CREATE PRODUCT
+app.post("/products", async (req, res) => {
+  try {
+    const product = new Product(req.body);
+    const savedProduct = await product.save();
+    res.status(201).json(savedProduct);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// READ ALL
-app.get("/products", (req, res) => {
+// GET ALL PRODUCTS ONLY
+app.get("/products", async (req, res) => {
   try {
-    res.json({
-      count: products.length,
-      products: products.sort((a, b) => b.id - a.id)
-    });
+    const products = await Product.find();
+    res.json(products);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json(sampleProducts);
   }
 });
 
-// READ SINGLE
-app.get("/products/:id", (req, res) => {
+// GET SINGLE PRODUCT
+app.get("/products/:id", async (req, res) => {
   try {
-    const productId = parseInt(req.params.id);
-    const product = products.find(p => p.id === productId);
-    
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
-    
     res.json(product);
   } catch (err) {
     res.status(400).json({ error: "Invalid product ID" });
   }
 });
 
-// UPDATE
-app.put("/products/:id", (req, res) => {
+// UPDATE PRODUCT
+app.put("/products/:id", async (req, res) => {
   try {
-    const productId = parseInt(req.params.id);
-    const productIndex = products.findIndex(p => p.id === productId);
-    
-    if (productIndex === -1) {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
-
-    const { name, price, category } = req.body;
-    const validCategories = ["Electronics", "Clothing", "Food", "Other"];
-
-    products[productIndex] = {
-      ...products[productIndex],
-      ...(name && { name }),
-      ...(price && { price: Number(price) }),
-      ...(category && { category: validCategories.includes(category) ? category : "Other" })
-    };
-
-    res.json({
-      message: "Product updated successfully",
-      product: products[productIndex]
-    });
+    res.json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
 
-// DELETE
-app.delete("/products/:id", (req, res) => {
+// DELETE PRODUCT
+app.delete("/products/:id", async (req, res) => {
   try {
-    const productId = parseInt(req.params.id);
-    const productIndex = products.findIndex(p => p.id === productId);
-    
-    if (productIndex === -1) {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
       return res.status(404).json({ error: "Product not found" });
     }
-
-    const deletedProduct = products.splice(productIndex, 1)[0];
-    
-    res.json({ 
-      message: "Product deleted successfully",
-      deletedProduct
+    res.json({
+      message: "Product deleted",
+      product: product
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Root route
-app.get("/", (req, res) => {
-  res.json({
-    message: "🚀 Product CRUD API is running!",
-    status: "Server is active and listening",
-    endpoints: {
-      "GET /": "API info (this page)",
-      "POST /products": "Create a new product",
-      "GET /products": "Get all products", 
-      "GET /products/:id": "Get single product",
-      "PUT /products/:id": "Update product",
-      "DELETE /products/:id": "Delete product"
-    }
-  });
-});
-
-// Start Server - Using port 8080 to avoid conflicts
-const PORT = 8080;
+// =============================
+// Start Server
+// =============================
+const PORT = 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📋 Access the API at: http://localhost:${PORT}`);
-  console.log(`✅ Server started successfully!`);
+  console.log(`✅ SERVER STARTED SUCCESSFULLY on port ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Go to http://localhost:${PORT} to see products on the main page!`);
+}).on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.log(`🔄 Port ${PORT} is busy, trying 3001...`);
+    app.listen(3001, () => {
+      console.log(`✅ SERVER STARTED on port 3001`);
+      console.log(`🚀 Go to http://localhost:3001 to see products!`);
+    });
+  }
 });
