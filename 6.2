@@ -1,0 +1,364 @@
+// package.json
+
+
+
+{
+  "name": "banking-api-jwt",
+  "version": "1.0.0",
+  "description": "Secure Banking API with JWT Authentication and Middleware",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
+
+
+
+// app.js
+
+
+
+const express = require("express");
+const app = express();
+
+// Middleware to parse JSON bodies
+app.use(express.json());
+
+console.log("🔄 Starting Secure Banking API with Token Authentication...");
+
+// =============================
+// MIDDLEWARE 1: Request Logging Middleware
+// =============================
+const loggingMiddleware = (req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`📝 [${timestamp}] ${req.method} ${req.url}`);
+  next(); // Continue to next middleware/route
+};
+
+// =============================
+// MIDDLEWARE 2: Token Authentication Middleware
+// =============================
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  // Check if Authorization header exists
+  if (!authHeader) {
+    return res.status(401).json({
+      error: "Access denied",
+      message: "Authorization header is required"
+    });
+  }
+  
+  // Check if it's a Bearer token
+  if (!authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "Access denied", 
+      message: "Invalid authorization format. Use: Bearer <token>"
+    });
+  }
+  
+  // Extract the token
+  const token = authHeader.split(" ")[1];
+  
+  // Simple token validation (replace with proper JWT in production)
+  const validTokens = [
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIxIiwiaWF0IjoxNzUyMTUwMTU2LCJleHAiOjE3NTIxNTM3NTZ9.CsXXcLd9xj74aEhtzJ-FiFgn60xfD4w1110X_rCfRQQ",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIyIiwiaWF0IjoxNzUyMTUwMTU2LCJleHAiOjE3NTIxNTM3NTZ9.AnotherValidTokenForUser2Here"
+  ];
+  
+  // Find user by token
+  const user = getUserByToken(token);
+  
+  if (!user) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "Invalid or expired token"
+    });
+  }
+  
+  // Token is valid, add user to request and continue
+  req.user = user;
+  console.log(`✅ Authentication successful for user: ${user.username}`);
+  next();
+};
+
+// =============================
+// Mock Database & Token Management
+// =============================
+const users = [
+  {
+    id: 1,
+    username: "user1",
+    password: "password123",
+    balance: 1000,
+    accountNumber: "ACC001",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIxIiwiaWF0IjoxNzUyMTUwMTU2LCJleHAiOjE3NTIxNTM3NTZ9.CsXXcLd9xj74aEhtzJ-FiFgn60xfD4w1110X_rCfRQQ"
+  },
+  {
+    id: 2, 
+    username: "user2",
+    password: "password456",
+    balance: 2500,
+    accountNumber: "ACC002",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIyIiwiaWF0IjoxNzUyMTUwMTU2LCJleHAiOjE3NTIxNTM3NTZ9.AnotherValidTokenForUser2Here"
+  }
+];
+
+// Helper function to find user by token
+function getUserByToken(token) {
+  return users.find(user => user.token === token);
+}
+
+// Helper function to generate simple token (mock JWT)
+function generateMockToken(username) {
+  const user = users.find(u => u.username === username);
+  return user ? user.token : null;
+}
+
+// =============================
+// Apply Global Middleware
+// =============================
+
+// Apply logging middleware to ALL routes globally
+app.use(loggingMiddleware);
+
+// =============================
+// ROUTES
+// =============================
+
+// PUBLIC ROUTE - API Documentation
+app.get("/", (req, res) => {
+  res.json({
+    message: "🏦 Welcome to Secure Banking API!",
+    status: "Public route - no authentication required",
+    endpoints: {
+      "POST /login": "Login to get authentication token",
+      "GET /public": "Public information", 
+      "GET /balance": "Get account balance (requires token)",
+      "POST /deposit": "Deposit money (requires token)",
+      "POST /withdraw": "Withdraw money (requires token)",
+      "GET /protected": "Protected test route (requires token)"
+    },
+    authentication: {
+      header: "Authorization: Bearer <your-token>",
+      example: `curl -H "Authorization: Bearer eyJhbGciOiJIUz..." http://localhost:3000/balance`
+    },
+    testCredentials: {
+      username: "user1",
+      password: "password123"
+    }
+  });
+});
+
+// ANOTHER PUBLIC ROUTE
+app.get("/public", (req, res) => {
+  res.json({
+    message: "📢 Public Banking Information",
+    access: "No authentication required",
+    bankName: "Secure Bank API",
+    support: "contact@bankapi.com",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// =============================
+// BANKING API ROUTES
+// =============================
+
+// LOGIN ROUTE - Public
+app.post("/login", (req, res) => {
+  const { username, password } = req.body;
+
+  // Input validation
+  if (!username || !password) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Username and password are required"
+    });
+  }
+
+  // Find user
+  const user = users.find(u => u.username === username);
+  if (!user) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid credentials"
+    });
+  }
+
+  // Verify password
+  if (password !== user.password) {
+    return res.status(401).json({
+      error: "Unauthorized", 
+      message: "Invalid credentials"
+    });
+  }
+
+  // Generate token (get from user object)
+  const token = generateMockToken(username);
+
+  console.log(`🔑 Login successful for user: ${username}`);
+
+  res.status(200).json({
+    message: "Login successful",
+    token: token,
+    user: {
+      username: user.username,
+      accountNumber: user.accountNumber
+    }
+  });
+});
+
+// GET BALANCE - Protected
+app.get("/balance", authMiddleware, (req, res) => {
+  const user = req.user; // From auth middleware
+  
+  res.status(200).json({
+    accountNumber: user.accountNumber,
+    username: user.username,
+    balance: user.balance,
+    currency: "USD",
+    lastUpdated: new Date().toISOString()
+  });
+});
+
+// DEPOSIT MONEY - Protected
+app.post("/deposit", authMiddleware, (req, res) => {
+  const { amount } = req.body;
+  const user = req.user; // From auth middleware
+
+  // Input validation
+  if (!amount || amount <= 0) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Valid positive amount is required"
+    });
+  }
+
+  // Update balance
+  const oldBalance = user.balance;
+  user.balance += amount;
+
+  console.log(`💰 Deposit: ${user.username} deposited $${amount}`);
+
+  res.status(200).json({
+    message: `Deposited $${amount}`,
+    oldBalance: oldBalance,
+    newBalance: user.balance,
+    transaction: "deposit",
+    amount: amount,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// WITHDRAW MONEY - Protected
+app.post("/withdraw", authMiddleware, (req, res) => {
+  const { amount } = req.body;
+  const user = req.user; // From auth middleware
+
+  // Input validation
+  if (!amount || amount <= 0) {
+    return res.status(400).json({
+      error: "Bad Request",
+      message: "Valid positive amount is required"
+    });
+  }
+
+  // Check sufficient balance
+  if (user.balance < amount) {
+    return res.status(400).json({
+      error: "Insufficient Funds",
+      message: "Not enough balance to complete withdrawal",
+      currentBalance: user.balance,
+      requestedAmount: amount
+    });
+  }
+
+  // Update balance
+  const oldBalance = user.balance;
+  user.balance -= amount;
+
+  console.log(`💸 Withdrawal: ${user.username} withdrew $${amount}`);
+
+  res.status(200).json({
+    message: `Withdrew $${amount}`,
+    oldBalance: oldBalance,
+    newBalance: user.balance,
+    transaction: "withdrawal",
+    amount: amount,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// PROTECTED TEST ROUTE - Requires Token
+app.get("/protected", authMiddleware, (req, res) => {
+  res.json({
+    message: "🔐 Welcome to the Protected Banking Area!",
+    status: "Access granted",
+    user: {
+      username: req.user.username,
+      accountNumber: req.user.accountNumber
+    },
+    bankingFeatures: {
+      viewBalance: "enabled",
+      deposit: "enabled", 
+      withdraw: "enabled",
+      accessLevel: "customer"
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// =============================
+// Error Handling Middleware
+// =============================
+app.use((err, req, res, next) => {
+  console.error("❌ Error:", err.message);
+  res.status(500).json({
+    error: "Internal Server Error",
+    message: "Something went wrong on the server"
+  });
+});
+
+// 404 Handler for undefined routes
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found",
+    message: `The route ${req.method} ${req.url} does not exist`
+  });
+});
+
+// =============================
+// Start Server
+// =============================
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Secure Banking API started on port ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`\n📋 BANKING API TESTING INSTRUCTIONS:`);
+  console.log(`   1. Get API Info (no auth):`);
+  console.log(`      curl http://localhost:${PORT}/`);
+  console.log(`   2. Login to get token:`);
+  console.log(`      curl -X POST http://localhost:${PORT}/login \\`);
+  console.log(`        -H "Content-Type: application/json" \\`);
+  console.log(`        -d '{"username": "user1", "password": "password123"}'`);
+  console.log(`   3. Check Balance (with token):`);
+  console.log(`      curl -H "Authorization: Bearer eyJhbGciOiJIUz..." http://localhost:${PORT}/balance`);
+  console.log(`   4. Deposit Money:`);
+  console.log(`      curl -X POST http://localhost:${PORT}/deposit \\`);
+  console.log(`        -H "Content-Type: application/json" \\`);
+  console.log(`        -H "Authorization: Bearer eyJhbGciOiJIUz..." \\`);
+  console.log(`        -d '{"amount": 250}'`);
+  console.log(`   5. Withdraw Money:`);
+  console.log(`      curl -X POST http://localhost:${PORT}/withdraw \\`);
+  console.log(`        -H "Content-Type: application/json" \\`);
+  console.log(`        -H "Authorization: Bearer eyJhbGciOiJIUz..." \\`);
+  console.log(`        -d '{"amount": 150}'`);
+  console.log(`\n👤 Test Credentials: user1 / password123`);
+  console.log(`🔐 Test Token for user1: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InVzZXIxIiwiaWF0IjoxNzUyMTUwMTU2LCJleHAiOjE3NTIxNTM3NTZ9.CsXXcLd9xj74aEhtzJ-FiFgn60xfD4w1110X_rCfRQQ`);
+});
+
