@@ -1,0 +1,446 @@
+// html.index
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Store - Fullstack Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <header class="app-header">
+            <h1>Product Store</h1>
+            <p>Fullstack Integration Demo</p>
+        </header>
+
+        <main class="main-content">
+            <!-- Loading State -->
+            <div id="loading" class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Loading products...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error" class="error-container" style="display: none;">
+                <h2>Oops! Something went wrong</h2>
+                <p id="error-message"></p>
+                <button class="retry-button" onclick="loadProducts()">Try Again</button>
+            </div>
+
+            <!-- Products Grid -->
+            <div id="products-container" class="products-container" style="display: none;">
+                <h2>Our Products</h2>
+                <div id="products-grid" class="products-grid">
+                    <!-- Products will be inserted here by JavaScript -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+//script.js
+
+
+
+
+
+
+
+// DOM elements
+const loadingElement = document.getElementById('loading');
+const errorElement = document.getElementById('error');
+const productsContainer = document.getElementById('products-container');
+const productsGrid = document.getElementById('products-grid');
+const errorMessage = document.getElementById('error-message');
+
+// Static product data (fallback)
+const staticProducts = [
+  { id: 1, name: "Laptop", price: 1200 },
+  { id: 2, name: "Mouse", price: 25 },
+  { id: 3, name: "Keyboard", price: 45 }
+];
+
+// Load products when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadProducts();
+});
+
+// Function to fetch products from API with fallback
+async function loadProducts() {
+    try {
+        showLoading();
+        
+        // Try to fetch from API first
+        const response = await fetch('/api/products', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            mode: 'cors'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                displayProducts(data.data);
+                return;
+            }
+        }
+        
+        // If API fails, use static data
+        console.log('API not available, using static data');
+        displayProducts(staticProducts);
+        
+    } catch (error) {
+        console.log('Fetch failed, using static data:', error);
+        // Use static data as fallback
+        displayProducts(staticProducts);
+    }
+}
+
+// Function to display products
+function displayProducts(products) {
+    hideLoading();
+    hideError();
+    
+    productsGrid.innerHTML = '';
+    
+    products.forEach(product => {
+        const productCard = createProductCard(product);
+        productsGrid.appendChild(productCard);
+    });
+    
+    productsContainer.style.display = 'block';
+}
+
+// Function to create a product card
+function createProductCard(product) {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    
+    card.innerHTML = `
+        <h3 class="product-name">${product.name}</h3>
+        <p class="product-price">$${product.price}</p>
+        <p class="product-description">High-quality product with excellent features and customer support.</p>
+        <button class="buy-button" onclick="handleBuy('${product.name}')">Buy Now</button>
+    `;
+    
+    return card;
+}
+
+// Function to handle buy button click
+function handleBuy(productName) {
+    alert(`Thank you for your interest in ${productName}! This is a demo.`);
+}
+
+// UI state management functions
+function showLoading() {
+    loadingElement.style.display = 'flex';
+    errorElement.style.display = 'none';
+    productsContainer.style.display = 'none';
+}
+
+function hideLoading() {
+    loadingElement.style.display = 'none';
+}
+
+function showError(message) {
+    errorMessage.textContent = message;
+    loadingElement.style.display = 'none';
+    errorElement.style.display = 'block';
+    productsContainer.style.display = 'none';
+}
+
+function hideError() {
+    errorElement.style.display = 'none';
+}
+
+
+
+
+
+
+
+//server.js
+
+
+
+
+
+
+
+
+
+
+const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Enhanced CORS configuration
+app.use(cors({
+    origin: ['https://ajwkcotpvotandiv-8080.bytexl.net', 'http://localhost:8080'],
+    credentials: true
+}));
+
+app.use(express.json());
+
+const products = [
+  { id: 1, name: "Laptop", price: 1200 },
+  { id: 2, name: "Mouse", price: 25 },
+  { id: 3, name: "Keyboard", price: 45 }
+];
+
+// API route
+app.get('/api/products', (req, res) => {
+  try {
+    console.log('Products API called');
+    res.json({
+      success: true,
+      data: products
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products'
+    });
+  }
+});
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({ message: 'Backend server is running!' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`CORS enabled for your domain`);
+});
+
+
+
+
+
+
+
+
+
+//styles.css
+
+
+
+
+
+
+
+
+
+
+
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+#app {
+    min-height: 100vh;
+}
+
+.app-header {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    padding: 2rem;
+    text-align: center;
+    color: white;
+    margin-bottom: 2rem;
+}
+
+.app-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.app-header p {
+    margin: 0;
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.main-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Loading Styles */
+.loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+    color: white;
+}
+
+.loading-spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-top: 4px solid white;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error Styles */
+.error-container {
+    background: white;
+    max-width: 500px;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.error-container h2 {
+    color: #e74c3c;
+    margin-bottom: 1rem;
+}
+
+.error-container p {
+    color: #666;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.retry-button {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.retry-button:hover {
+    background: #5a6fd8;
+}
+
+/* Products Container */
+.products-container h2 {
+    text-align: center;
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 2rem;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    padding: 1rem;
+}
+
+.product-card {
+    background: white;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.product-name {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.product-price {
+    font-size: 2rem;
+    color: #667eea;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.product-description {
+    color: #666;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.buy-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.buy-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .app-header h1 {
+        font-size: 2rem;
+    }
+    
+    .products-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .product-card {
+        padding: 1.5rem;
+    }
+}
