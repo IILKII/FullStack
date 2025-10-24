@@ -1,0 +1,853 @@
+//app.css
+
+
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  height: 100vh;
+  overflow: hidden;
+}
+
+.chat-container {
+  width: 100%;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.chat-header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header-left h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.welcome {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.online-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.4rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  background: #4ade80;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connection-status {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* User Setup */
+.user-setup {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+
+.setup-container {
+  background: white;
+  padding: 3rem;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.setup-container h2 {
+  margin-bottom: 1rem;
+  color: #2d3748;
+  font-size: 1.8rem;
+}
+
+.setup-container p {
+  color: #64748b;
+  margin-bottom: 2rem;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.username-input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.username-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.join-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+  white-space: nowrap;
+}
+
+.join-btn:hover {
+  transform: translateY(-2px);
+}
+
+.features-list {
+  text-align: left;
+}
+
+.features-list h3 {
+  margin-bottom: 1rem;
+  color: #2d3748;
+}
+
+.features-list ul {
+  list-style: none;
+  color: #64748b;
+}
+
+.features-list li {
+  padding: 0.3rem 0;
+}
+
+/* Messages Container */
+.messages-container {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Message Styles */
+.message {
+  max-width: 70%;
+  padding: 1rem 1.5rem;
+  border-radius: 18px;
+  animation: messageSlide 0.3s ease-out;
+}
+
+@keyframes messageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message.own {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-bottom-right-radius: 5px;
+  margin-left: auto;
+}
+
+.message.other {
+  align-self: flex-start;
+  background: white;
+  color: #2d3748;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 5px;
+}
+
+.message.system {
+  align-self: center;
+  background: #f1f5f9;
+  color: #64748b;
+  font-style: italic;
+  max-width: 90%;
+  text-align: center;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.message-content {
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+.system-message {
+  text-align: center;
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  color: #64748b;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.typing-dots {
+  display: flex;
+  gap: 2px;
+}
+
+.typing-dots span {
+  width: 4px;
+  height: 4px;
+  background: #64748b;
+  border-radius: 50%;
+  animation: typing 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-5px); }
+}
+
+/* Message Input */
+.message-input-container {
+  padding: 1.5rem;
+  background: white;
+  border-top: 1px solid #e2e8f0;
+}
+
+.input-group {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.message-input {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 25px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.message-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.send-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 1rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.send-btn:disabled {
+  background: #cbd5e0;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Scrollbar */
+.messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.messages-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.messages-container::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border-radius: 10px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .header-right {
+    align-items: center;
+  }
+
+  .message {
+    max-width: 85%;
+  }
+
+  .setup-container {
+    padding: 2rem;
+    margin: 1rem;
+  }
+
+  .input-group {
+    flex-direction: column;
+  }
+}
+
+
+
+
+
+
+
+//app.jsx
+
+
+
+
+
+
+
+
+
+import { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
+import './App.css';
+
+function App() {
+  const [socket, setSocket] = useState(null);
+  const [currentUser, setCurrentUser] = useState('');
+  const [username, setUsername] = useState('');
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(0);
+  const [typingUser, setTypingUser] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('Connecting...');
+  
+  const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  // Initialize socket connection
+  useEffect(() => {
+    // Use the same host but different port for backend
+    const backendUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:3001'
+      : `http://${window.location.hostname}:3001`;
+    
+    const newSocket = io(backendUrl, {
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => {
+      console.log('Connected to server');
+      setConnectionStatus('Connected');
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      setConnectionStatus('Disconnected');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      setConnectionStatus('Connection Failed - Check if server is running');
+    });
+
+    // Chat events
+    newSocket.on('chat_history', (chatMessages) => {
+      setMessages(chatMessages);
+    });
+
+    newSocket.on('receive_message', (message) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    newSocket.on('user_joined', (message) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    newSocket.on('user_left', (message) => {
+      setMessages(prev => [...prev, message]);
+    });
+
+    newSocket.on('users_online', (users) => {
+      setOnlineUsers(users.length);
+    });
+
+    newSocket.on('user_typing', (data) => {
+      if (data.isTyping) {
+        setTypingUser(data.username);
+      } else {
+        setTypingUser('');
+      }
+    });
+
+    setSocket(newSocket);
+
+    return () => newSocket.close();
+  }, []);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const joinChat = () => {
+    if (!username.trim()) {
+      alert('Please enter your name');
+      return;
+    }
+
+    if (username.length > 20) {
+      alert('Name must be less than 20 characters');
+      return;
+    }
+
+    setCurrentUser(username);
+    socket.emit('user_join', username);
+  };
+
+  const sendMessage = () => {
+    if (!message.trim() || !currentUser) return;
+
+    socket.emit('send_message', {
+      username: currentUser,
+      message: message
+    });
+
+    setMessage('');
+    stopTypingIndicator();
+  };
+
+  const handleTyping = () => {
+    if (!currentUser) return;
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    socket.emit('typing', {
+      username: currentUser,
+      isTyping: true
+    });
+
+    typingTimeoutRef.current = setTimeout(() => {
+      stopTypingIndicator();
+    }, 1000);
+  };
+
+  const stopTypingIndicator = () => {
+    if (currentUser) {
+      socket.emit('typing', {
+        username: currentUser,
+        isTyping: false
+      });
+    }
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      if (!currentUser) {
+        joinChat();
+      } else {
+        sendMessage();
+      }
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div className="chat-container">
+        <div className="chat-header">
+          <h1>💬 Real-Time Chat</h1>
+          <div className="connection-status">
+            Status: {connectionStatus}
+          </div>
+        </div>
+
+        <div className="user-setup">
+          <div className="setup-container">
+            <h2>Join the Chat Room</h2>
+            <p>Enter your name to start chatting in real-time</p>
+            
+            <div className="input-group">
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder="Enter your name..."
+                maxLength={20}
+                className="username-input"
+              />
+              <button onClick={joinChat} className="join-btn">
+                Join Chat
+              </button>
+            </div>
+
+            <div className="features-list">
+              <h3>Features:</h3>
+              <ul>
+                <li>✅ Real-time messaging</li>
+                <li>✅ Online user counter</li>
+                <li>✅ Typing indicators</li>
+                <li>✅ User join/leave notifications</li>
+                <li>✅ Message history</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chat-container">
+      <div className="chat-header">
+        <div className="header-left">
+          <h1>💬 Real-Time Chat</h1>
+          <span className="welcome">Welcome, {currentUser}!</span>
+        </div>
+        <div className="header-right">
+          <div className="online-indicator">
+            <span className="status-dot"></span>
+            {onlineUsers} online
+          </div>
+          <div className="connection-status">
+            {connectionStatus}
+          </div>
+        </div>
+      </div>
+
+      <div className="messages-container">
+        <div className="messages-list">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`message ${
+                msg.type === 'system' 
+                  ? 'system' 
+                  : msg.username === currentUser 
+                  ? 'own' 
+                  : 'other'
+              }`}
+            >
+              {msg.type === 'system' ? (
+                <div className="message-content system-message">
+                  {msg.message}
+                </div>
+              ) : (
+                <>
+                  <div className="message-header">
+                    <strong>{msg.username}</strong>
+                    <span>{msg.timestamp}</span>
+                  </div>
+                  <div className="message-content">
+                    {msg.message}
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {typingUser && (
+          <div className="typing-indicator">
+            <span>{typingUser} is typing</span>
+            <div className="typing-dots">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="message-input-container">
+        <div className="input-group">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              handleTyping();
+            }}
+            onKeyPress={handleKeyPress}
+            placeholder="Type your message..."
+            className="message-input"
+          />
+          <button 
+            onClick={sendMessage} 
+            disabled={!message.trim()}
+            className="send-btn"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
+
+
+
+
+
+
+
+
+
+
+
+//package.json
+
+
+
+
+
+
+
+
+
+
+
+{
+  "name": "my-project",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "server": "node server.js"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "socket.io-client": "^4.7.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.55.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "vite": "^4.5.0"
+  }
+}
+
+
+
+
+
+
+
+
+
+//server.js
+
+
+
+
+
+
+
+
+
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+
+const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",  // Allow all origins
+    methods: ["GET", "POST"]
+  }
+});
+
+const PORT = 3001;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Serve static files from public directory
+app.use(express.static('public'));
+
+// Store connected users and messages
+const connectedUsers = new Map();
+const chatMessages = [];
+
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('✅ New user connected:', socket.id);
+
+  // Send chat history to new user
+  socket.emit('chat_history', chatMessages);
+
+  // Handle user joining
+  socket.on('user_join', (username) => {
+    connectedUsers.set(socket.id, username);
+    console.log(`👋 User ${username} joined the chat`);
+    
+    // Notify all users about new user
+    const userJoinedMessage = {
+      id: Date.now(),
+      username: 'System',
+      message: `${username} joined the chat`,
+      timestamp: new Date().toLocaleTimeString(),
+      type: 'system'
+    };
+    
+    chatMessages.push(userJoinedMessage);
+    io.emit('user_joined', userJoinedMessage);
+    io.emit('users_online', Array.from(connectedUsers.values()));
+  });
+
+  // Handle new message
+  socket.on('send_message', (data) => {
+    const message = {
+      id: Date.now(),
+      username: data.username,
+      message: data.message,
+      timestamp: new Date().toLocaleTimeString(),
+      type: 'user'
+    };
+
+    console.log('💬 New message:', message.username, ':', message.message);
+    
+    // Add to chat history
+    chatMessages.push(message);
+    
+    // Broadcast to all connected clients
+    io.emit('receive_message', message);
+  });
+
+  // Handle typing indicator
+  socket.on('typing', (data) => {
+    socket.broadcast.emit('user_typing', {
+      username: data.username,
+      isTyping: data.isTyping
+    });
+  });
+
+  // Handle user disconnect
+  socket.on('disconnect', () => {
+    const username = connectedUsers.get(socket.id);
+    if (username) {
+      connectedUsers.delete(socket.id);
+      
+      const userLeftMessage = {
+        id: Date.now(),
+        username: 'System',
+        message: `${username} left the chat`,
+        timestamp: new Date().toLocaleTimeString(),
+        type: 'system'
+      };
+      
+      chatMessages.push(userLeftMessage);
+      io.emit('user_left', userLeftMessage);
+      io.emit('users_online', Array.from(connectedUsers.values()));
+      console.log(`👋 User ${username} left the chat`);
+    }
+    
+    console.log('❌ User disconnected:', socket.id);
+  });
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Socket.io server running on port ${PORT}`);
+  console.log(`💬 Real-time chat backend ready!`);
+  console.log(`📡 Server accessible from any IP address`);
+});
