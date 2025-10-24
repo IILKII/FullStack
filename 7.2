@@ -1,0 +1,795 @@
+//index.html
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Cart - Redux Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Navbar -->
+        <nav class="navbar">
+            <h1>My Shop</h1>
+            <div class="cart-indicator">
+                Cart: <span id="cart-count">0</span> items
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="main-container">
+            <!-- Products Section -->
+            <div class="product-list">
+                <h2>Products</h2>
+                <div class="products-grid">
+                    <!-- Products will be loaded here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Shopping Cart Section -->
+            <div class="shopping-cart">
+                <div class="cart-header">
+                    <h2>Shopping Cart (<span id="cart-total-items">0</span> items)</h2>
+                    <button class="clear-cart-btn" onclick="clearCart()">Clear Cart</button>
+                </div>
+                
+                <div id="cart-items" class="cart-items">
+                    <!-- Cart items will be loaded here -->
+                </div>
+                
+                <div class="cart-summary">
+                    <h3>Total: $<span id="cart-total-amount">0</span></h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+//script.js
+
+
+
+
+
+
+
+
+
+
+// Redux-like State Management
+class Store {
+    constructor() {
+        this.state = {
+            items: [],
+            totalQuantity: 0,
+            totalAmount: 0
+        };
+        this.subscribers = [];
+    }
+
+    getState() {
+        return this.state;
+    }
+
+    dispatch(action) {
+        this.state = this.reducer(this.state, action);
+        this.notifySubscribers();
+        this.saveToLocalStorage();
+    }
+
+    reducer(state, action) {
+        switch (action.type) {
+            case 'ADD_ITEM':
+                return this.addItemReducer(state, action);
+            case 'REMOVE_ITEM':
+                return this.removeItemReducer(state, action);
+            case 'DELETE_ITEM':
+                return this.deleteItemReducer(state, action);
+            case 'CLEAR_CART':
+                return this.clearCartReducer(state);
+            case 'LOAD_FROM_STORAGE':
+                return action.payload;
+            default:
+                return state;
+        }
+    }
+
+    addItemReducer(state, action) {
+        const newItem = action.payload;
+        const existingItem = state.items.find(item => item.id === newItem.id);
+        
+        const newState = {
+            ...state,
+            items: [...state.items]
+        };
+
+        if (!existingItem) {
+            newState.items.push({
+                id: newItem.id,
+                name: newItem.name,
+                price: newItem.price,
+                quantity: 1,
+                totalPrice: newItem.price
+            });
+        } else {
+            const itemIndex = newState.items.findIndex(item => item.id === newItem.id);
+            newState.items[itemIndex] = {
+                ...newState.items[itemIndex],
+                quantity: newState.items[itemIndex].quantity + 1,
+                totalPrice: newState.items[itemIndex].totalPrice + newItem.price
+            };
+        }
+
+        newState.totalQuantity++;
+        newState.totalAmount += newItem.price;
+
+        return newState;
+    }
+
+    removeItemReducer(state, action) {
+        const id = action.payload;
+        const existingItem = state.items.find(item => item.id === id);
+        
+        if (!existingItem) return state;
+
+        const newState = {
+            ...state,
+            items: [...state.items]
+        };
+        const itemIndex = newState.items.findIndex(item => item.id === id);
+
+        if (existingItem.quantity === 1) {
+            newState.items.splice(itemIndex, 1);
+        } else {
+            newState.items[itemIndex] = {
+                ...newState.items[itemIndex],
+                quantity: newState.items[itemIndex].quantity - 1,
+                totalPrice: newState.items[itemIndex].totalPrice - existingItem.price
+            };
+        }
+
+        newState.totalQuantity--;
+        newState.totalAmount -= existingItem.price;
+
+        return newState;
+    }
+
+    deleteItemReducer(state, action) {
+        const id = action.payload;
+        const existingItem = state.items.find(item => item.id === id);
+        
+        if (!existingItem) return state;
+
+        const newState = {
+            ...state,
+            items: state.items.filter(item => item.id !== id)
+        };
+        
+        newState.totalQuantity -= existingItem.quantity;
+        newState.totalAmount -= existingItem.totalPrice;
+
+        return newState;
+    }
+
+    clearCartReducer(state) {
+        return {
+            items: [],
+            totalQuantity: 0,
+            totalAmount: 0
+        };
+    }
+
+    subscribe(callback) {
+        this.subscribers.push(callback);
+    }
+
+    notifySubscribers() {
+        this.subscribers.forEach(callback => callback(this.state));
+    }
+
+    saveToLocalStorage() {
+        localStorage.setItem('reduxCart', JSON.stringify(this.state));
+    }
+
+    loadFromLocalStorage() {
+        const saved = localStorage.getItem('reduxCart');
+        if (saved) {
+            this.state = JSON.parse(saved);
+            this.notifySubscribers();
+        }
+    }
+}
+
+// Create store instance
+const store = new Store();
+
+// Product data
+const products = [
+    { id: 1, name: 'Laptop', price: 1200 },
+    { id: 2, name: 'Mouse', price: 25 },
+    { id: 3, name: 'Keyboard', price: 45 }
+];
+
+// DOM Elements
+let productsGrid, cartItems, cartCount, cartTotalItems, cartTotalAmount;
+
+// Format price with Rupee symbol
+function formatPrice(price) {
+    return '₹' + price;
+}
+
+// Initialize the app
+function init() {
+    productsGrid = document.querySelector('.products-grid');
+    cartItems = document.getElementById('cart-items');
+    cartCount = document.getElementById('cart-count');
+    cartTotalItems = document.getElementById('cart-total-items');
+    cartTotalAmount = document.getElementById('cart-total-amount');
+    
+    renderProducts();
+    store.loadFromLocalStorage();
+    store.subscribe(renderCart);
+    renderCart(store.getState());
+}
+
+// Render products list with Rupee symbols
+function renderProducts() {
+    if (!productsGrid) return;
+    
+    const productsHTML = products.map(product => `
+        <div class="product-card">
+            <h3 class="product-name">${product.name}</h3>
+            <p class="product-price">
+                <span class="rupee-symbol">₹</span>${product.price}
+            </p>
+            <button class="add-to-cart-btn" onclick="addToCart(${product.id})">
+                Add to Cart
+            </button>
+        </div>
+    `).join('');
+    
+    productsGrid.innerHTML = productsHTML;
+}
+
+// Render shopping cart with Rupee symbols
+function renderCart(state) {
+    if (!cartCount || !cartTotalItems || !cartTotalAmount || !cartItems) return;
+    
+    cartCount.textContent = state.totalQuantity;
+    cartTotalItems.textContent = state.totalQuantity;
+    cartTotalAmount.textContent = formatPrice(state.totalAmount);
+
+    if (state.items.length === 0) {
+        cartItems.innerHTML = '<p class="empty-cart">Your cart is empty</p>';
+        return;
+    }
+
+    const cartHTML = state.items.map(item => `
+        <div class="cart-item">
+            <div class="item-info">
+                <h4 class="item-name">${item.name}</h4>
+                <p class="item-price">${formatPrice(item.price)} each</p>
+                <p class="item-total">Total: ${formatPrice(item.totalPrice)}</p>
+            </div>
+            
+            <div class="item-controls">
+                <div class="quantity-controls">
+                    <button class="quantity-btn" onclick="removeFromCart(${item.id})">−</button>
+                    <span class="quantity">${item.quantity}</span>
+                    <button class="quantity-btn" onclick="addToCart(${item.id})">+</button>
+                </div>
+                
+                <button class="remove-btn" onclick="deleteFromCart(${item.id})">Remove</button>
+            </div>
+        </div>
+    `).join('');
+    
+    cartItems.innerHTML = cartHTML;
+}
+
+// Action Creators
+function addToCart(productId) {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+        store.dispatch({
+            type: 'ADD_ITEM',
+            payload: product
+        });
+    }
+}
+
+function removeFromCart(productId) {
+    store.dispatch({
+        type: 'REMOVE_ITEM',
+        payload: productId
+    });
+}
+
+function deleteFromCart(productId) {
+    store.dispatch({
+        type: 'DELETE_ITEM',
+        payload: productId
+    });
+}
+
+function clearCart() {
+    store.dispatch({
+        type: 'CLEAR_CART'
+    });
+}
+
+// Initialize app when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+
+
+
+
+
+
+
+
+
+
+//styles.css
+
+
+
+
+
+
+
+
+
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #2d3748;
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+#app {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Navbar - Centered */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.navbar h1 {
+    font-size: 2rem;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 700;
+}
+
+.cart-indicator {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+/* Main Container - Centered */
+.main-container {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+    flex: 1;
+    width: 100%;
+}
+
+/* Product List - Centered Content */
+.product-list {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.product-list h2 {
+    color: #2d3748;
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+    text-align: center;
+    font-weight: 600;
+    position: relative;
+}
+
+.product-list h2::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 2px;
+}
+
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    justify-items: center;
+}
+
+.product-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 1px solid #e2e8f0;
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+    max-width: 300px;
+}
+
+.product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+}
+
+.product-name {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.product-price {
+    font-size: 1.8rem;
+    color: #10b981;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+}
+
+/* Rupee symbol styling */
+.rupee-symbol {
+    font-family: Arial, sans-serif;
+    font-size: 1.4rem;
+    font-weight: bold;
+}
+
+.add-to-cart-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.add-to-cart-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* Shopping Cart - Centered */
+.shopping-cart {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    height: fit-content;
+}
+
+.cart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.cart-header h2 {
+    color: #2d3748;
+    font-size: 1.6rem;
+    font-weight: 600;
+}
+
+.clear-cart-btn {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.2rem;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.clear-cart-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+}
+
+.empty-cart {
+    text-align: center;
+    color: #718096;
+    font-style: italic;
+    padding: 3rem 2rem;
+    font-size: 1.1rem;
+}
+
+.cart-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    margin-bottom: 2rem;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+}
+
+/* Scrollbar Styling */
+.cart-items::-webkit-scrollbar {
+    width: 6px;
+}
+
+.cart-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.cart-items::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 10px;
+}
+
+.cart-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    background: #f8fafc;
+    border-radius: 12px;
+    border-left: 4px solid #10b981;
+    transition: all 0.3s ease;
+}
+
+.cart-item:hover {
+    background: #f1f5f9;
+    transform: translateX(5px);
+}
+
+.item-info {
+    flex: 1;
+    text-align: left;
+}
+
+.item-info h4 {
+    margin-bottom: 0.5rem;
+    color: #2d3748;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.item-price {
+    color: #718096;
+    font-size: 0.9rem;
+    margin-bottom: 0.3rem;
+}
+
+.item-total {
+    color: #10b981;
+    font-weight: bold;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.item-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.8rem;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    background: white;
+    padding: 0.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.quantity-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.quantity-btn:hover {
+    transform: scale(1.1);
+}
+
+.quantity {
+    font-weight: bold;
+    min-width: 30px;
+    text-align: center;
+    font-size: 1.1rem;
+    color: #2d3748;
+}
+
+.remove-btn {
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.remove-btn:hover {
+    transform: scale(1.05);
+}
+
+.cart-summary {
+    border-top: 2px solid #e2e8f0;
+    padding-top: 1.5rem;
+    text-align: center;
+    background: #f8fafc;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.cart-summary h3 {
+    color: #2d3748;
+    font-size: 1.4rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .main-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+        padding: 0 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .navbar h1 {
+        font-size: 1.6rem;
+    }
+    
+    .main-container {
+        padding: 0 1rem;
+    }
+    
+    .product-list,
+    .shopping-cart {
+        padding: 1.5rem;
+    }
+    
+    .products-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .cart-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .item-controls {
+        flex-direction: row;
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .cart-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: center;
+        text-align: center;
+    }
+    
+    .item-info {
+        text-align: center;
+        width: 100%;
+    }
+}
+
+/* Center alignment for all text */
+.product-list, .shopping-cart {
+    text-align: center;
+}
+
+.product-card {
+    margin: 0 auto;
+}
