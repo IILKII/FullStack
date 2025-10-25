@@ -1,0 +1,455 @@
+//src/App.jsx
+
+
+
+
+
+
+
+import { useState } from 'react'
+import './App.css'
+
+function App() {
+  const [currentToken, setCurrentToken] = useState('')
+  const [username, setUsername] = useState('testuser')
+  const [password, setPassword] = useState('password123')
+  const [response, setResponse] = useState({ message: 'JWT System Ready!' })
+  const [isSuccess, setIsSuccess] = useState(true)
+
+  // JWT Implementation
+  const JWT = {
+    base64url(source) {
+      let encoded = btoa(JSON.stringify(source))
+      return encoded.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+    },
+    
+    encode(payload) {
+      const header = { alg: 'HS256', typ: 'JWT' }
+      return [this.base64url(header), this.base64url(payload), 'signature'].join('.')
+    },
+    
+    decode(token) {
+      try {
+        const parts = token.split('.')
+        return JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+      } catch (e) {
+        throw new Error('Invalid token')
+      }
+    },
+    
+    verify(token) {
+      const payload = this.decode(token)
+      const now = Math.floor(Date.now() / 1000)
+      if (payload.exp && payload.exp < now) throw new Error('Token expired')
+      return payload
+    }
+  }
+
+  // Backend Simulator
+  const BackendSimulator = {
+    users: [{ id: 1, username: 'testuser', password: 'password123' }],
+    
+    async login(username, password) {
+      await this.delay(500)
+      const user = this.users.find(u => u.username === username && u.password === password)
+      if (!user) throw { message: 'Authentication failed', error: 'Invalid credentials' }
+      
+      const payload = {
+        id: user.id,
+        username: user.username,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + 3600
+      }
+      
+      return {
+        message: 'Login successful',
+        token: JWT.encode(payload),
+        user: { id: user.id, username: user.username }
+      }
+    },
+    
+    async getPublicData() {
+      await this.delay(300)
+      return {
+        message: 'Public data - no auth required',
+        timestamp: new Date().toISOString()
+      }
+    },
+    
+    async getProtectedData(token) {
+      await this.delay(300)
+      try {
+        const user = JWT.verify(token)
+        return {
+          message: '✅ ACCESS GRANTED to protected route!',
+          user: user,
+          secretData: 'This is highly sensitive information!',
+          timestamp: new Date().toISOString()
+        }
+      } catch (error) {
+        throw { message: '❌ ACCESS DENIED', error: error.message }
+      }
+    },
+    
+    async getProfile(token) {
+      await this.delay(300)
+      try {
+        const user = JWT.verify(token)
+        return {
+          message: 'Profile loaded successfully',
+          profile: {
+            id: user.id,
+            username: user.username,
+            role: 'authenticated_user',
+            lastAccess: new Date().toISOString()
+          }
+        }
+      } catch (error) {
+        throw { message: 'Cannot access profile', error: error.message }
+      }
+    },
+    
+    async verifyToken(token) {
+      await this.delay(300)
+      try {
+        const user = JWT.verify(token)
+        return { message: '✅ Token is valid', user: user, valid: true }
+      } catch (error) {
+        throw { message: '❌ Token invalid', error: error.message, valid: false }
+      }
+    },
+    
+    delay(ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
+  }
+
+  const displayResponse = (data, success = true) => {
+    setResponse(data)
+    setIsSuccess(success)
+  }
+  
+  const login = async () => {
+    try {
+      const data = await BackendSimulator.login(username, password)
+      setCurrentToken(data.token)
+      displayResponse(data)
+    } catch (error) {
+      displayResponse(error, false)
+    }
+  }
+  
+  const testPublicRoute = async () => {
+    try {
+      const data = await BackendSimulator.getPublicData()
+      displayResponse(data)
+    } catch (error) {
+      displayResponse(error, false)
+    }
+  }
+  
+  const testProtectedRoute = async () => {
+    if (!currentToken) {
+      displayResponse({ message: '❌ ACCESS DENIED', error: 'Token missing - Login first!' }, false)
+      return
+    }
+    try {
+      const data = await BackendSimulator.getProtectedData(currentToken)
+      displayResponse(data)
+    } catch (error) {
+      displayResponse(error, false)
+    }
+  }
+  
+  const testProfileRoute = async () => {
+    if (!currentToken) {
+      displayResponse({ message: 'Access denied', error: 'Token missing' }, false)
+      return
+    }
+    try {
+      const data = await BackendSimulator.getProfile(currentToken)
+      displayResponse(data)
+    } catch (error) {
+      displayResponse(error, false)
+    }
+  }
+  
+  const verifyToken = async () => {
+    if (!currentToken) {
+      displayResponse({ error: 'No token - Login first' }, false)
+      return
+    }
+    try {
+      const data = await BackendSimulator.verifyToken(currentToken)
+      displayResponse(data)
+    } catch (error) {
+      displayResponse(error, false)
+    }
+  }
+  
+  const clearToken = () => {
+    setCurrentToken('')
+    displayResponse({ message: 'Token cleared. Try protected routes to see auth errors.' })
+  }
+
+  return (
+    <div className="container">
+      <div className="header">
+        <h1>🔐 JWT Authentication System</h1>
+        <p>Complete JWT Implementation - React Version</p>
+        {currentToken && (
+          <div style={{background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '8px', marginTop: '10px'}}>
+            ✅ Token Active
+          </div>
+        )}
+      </div>
+      
+      <div className="row">
+        <div className="col">
+          <div className="card">
+            <h2>1. Login & Get Token</h2>
+            <div className="form-group">
+              <label>Username</label>
+              <input 
+                type="text" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+              />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+              />
+            </div>
+            <button onClick={login} className="btn-success">🔑 Login & Get Token</button>
+            
+            {currentToken && (
+              <div className="token-display">
+                <strong>Current Token:</strong><br/>
+                <span>{currentToken}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="col">
+          <div className="card">
+            <h2>2. Test Routes</h2>
+            <button onClick={testPublicRoute}>🌐 Public Route</button>
+            <button onClick={testProtectedRoute}>🔒 Protected Route</button>
+            <button onClick={testProfileRoute}>👤 Profile Route</button>
+            <button onClick={verifyToken}>✅ Verify Token</button>
+            <button onClick={clearToken} className="btn-danger">🗑️ Clear Token</button>
+          </div>
+        </div>
+      </div>
+      
+      <div className="card">
+        <h2>API Response</h2>
+        <div className={`response ${isSuccess ? 'success' : 'error'}`}>
+          <pre>{JSON.stringify(response, null, 2)}</pre>
+        </div>
+      </div>
+      
+      <div className="card">
+        <h2>📋 JWT Authentication Demo</h2>
+        <p><strong>This demonstrates:</strong></p>
+        <ul>
+          <li>✅ JWT Token Generation</li>
+          <li>✅ Protected Route Authentication</li>
+          <li>✅ Token Validation</li>
+          <li>✅ Error Handling</li>
+        </ul>
+        <p><strong>Test Credentials:</strong> testuser / password123</p>
+      </div>
+    </div>
+  )
+}
+
+export default App
+
+
+
+
+
+
+
+
+
+//src/App.css
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  text-align: center;
+  color: white;
+  margin-bottom: 30px;
+  padding: 20px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  margin-bottom: 25px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.card h2 {
+  color: #333;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #667eea;
+  padding-bottom: 10px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #555;
+}
+
+input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e1e5ee;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+input:focus {
+  border-color: #667eea;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+button {
+  background: linear-gradient(to right, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 14px 25px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-success {
+  background: linear-gradient(to right, #56ab2f, #a8e6cf);
+}
+
+.btn-danger {
+  background: linear-gradient(to right, #ff416c, #ff4b2b);
+}
+
+.response {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  white-space: pre-wrap;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.success {
+  border-left-color: #56ab2f;
+  background: #f0fff4;
+}
+
+.error {
+  border-left-color: #ff416c;
+  background: #fff5f5;
+}
+
+.token-display {
+  word-break: break-all;
+  background: #2d3748;
+  color: #e2e8f0;
+  padding: 15px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 25px;
+  margin-bottom: 25px;
+}
+
+.col {
+  flex: 1;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+  .row {
+    flex-direction: column;
+  }
+}
+//
