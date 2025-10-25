@@ -1,0 +1,283 @@
+// package.json
+
+
+
+
+cat > package.json << 'JSON'
+{
+  "name": "rbac-backend",
+  "version": "1.0.0",
+  "description": "Role-Based Access Control System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5"
+  }
+}
+JSON
+
+
+
+
+
+//app.js
+
+
+
+
+
+
+
+
+# Create the RBAC server in root directory
+cat > server.js << 'JAVASCRIPT'
+const express = require('express');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+
+const app = express();
+const PORT = 3000;
+const JWT_SECRET = 'rbac-secret-key-2024';
+
+// Middleware
+app.use(express.json());
+app.use(cors());
+
+// User database with different roles
+const users = [
+  {
+    id: 1,
+    username: 'adminUser',
+    password: 'admin123',
+    role: 'Admin'
+  },
+  {
+    id: 2,
+    username: 'moderatorUser',
+    password: 'moderator123',
+    role: 'Moderator'
+  },
+  {
+    id: 3,
+    username: 'regularUser',
+    password: 'user123',
+    role: 'User'
+  },
+  {
+    id: 4,
+    username: 'viewerUser',
+    password: 'viewer123',
+    role: 'Viewer'
+  }
+];
+
+// Role hierarchy (higher roles have more permissions)
+const roleHierarchy = {
+  'Viewer': 1,
+  'User': 2,
+  'Moderator': 3,
+  'Admin': 4
+};
+
+// Authentication Middleware
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({
+      message: 'Access denied',
+      error: 'Authentication token required'
+    });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({
+        message: 'Access denied',
+        error: 'Invalid or expired token'
+      });
+    }
+    
+    req.user = user;
+    next();
+  });
+};
+
+// Role-Based Authorization Middleware
+const requireRole = (requiredRole) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        message: 'Access denied',
+        error: 'Authentication required'
+      });
+    }
+
+    const userRoleLevel = roleHierarchy[req.user.role];
+    const requiredRoleLevel = roleHierarchy[requiredRole];
+
+    if (userRoleLevel >= requiredRoleLevel) {
+      next();
+    } else {
+      return res.status(403).json({
+        message: 'Access denied',
+        error: `Insufficient permissions. Required role: ${requiredRole}`,
+        yourRole: req.user.role
+      });
+    }
+  };
+};
+
+// Routes
+
+// Login Route - Issues JWT with Role
+app.post('/login', (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({
+        message: 'Validation failed',
+        error: 'Username and password are required'
+      });
+    }
+
+    const user = users.find(u => u.username === username && u.password === password);
+    if (!user) {
+      return res.status(401).json({
+        message: 'Authentication failed',
+        error: 'Invalid username or password'
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    res.json({
+      message: 'Login successful',
+      token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      message: 'Server error',
+      error: 'Internal server error occurred'
+    });
+  }
+});
+
+// Public Route - No authentication required
+app.get('/public', (req, res) => {
+  res.json({
+    message: 'This is a public route - accessible to everyone',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// User Profile Route - Requires at least User role
+app.get('/user-profile', authenticateToken, requireRole('User'), (req, res) => {
+  res.json({
+    message: `Welcome to your profile, ${req.user.username}`,
+    user: req.user,
+    profileData: {
+      email: `${req.user.username}@example.com`,
+      joinDate: '2024-01-01'
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Moderator Panel - Requires at least Moderator role
+app.get('/moderator-panel', authenticateToken, requireRole('Moderator'), (req, res) => {
+  res.json({
+    message: 'Welcome to Moderator Panel',
+    user: req.user,
+    moderatorTools: {
+      contentModeration: true,
+      userManagement: true,
+      analytics: true
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Admin Dashboard - Requires Admin role
+app.get('/admin-dashboard', authenticateToken, requireRole('Admin'), (req, res) => {
+  res.json({
+    message: 'Welcome to Admin Dashboard',
+    user: req.user,
+    adminTools: {
+      userManagement: true,
+      systemConfiguration: true,
+      databaseAccess: true
+    },
+    systemStats: {
+      totalUsers: users.length,
+      activeSessions: 15
+    },
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Token Verification Endpoint
+app.post('/verify-token', authenticateToken, (req, res) => {
+  res.json({
+    message: 'Token is valid',
+    user: req.user,
+    permissions: {
+      role: req.user.role,
+      level: roleHierarchy[req.user.role]
+    },
+    valid: true
+  });
+});
+
+// Server Info Route
+app.get('/', (req, res) => {
+  res.json({
+    message: 'RBAC Authentication Server is running',
+    endpoints: {
+      'POST /login': 'Authenticate and receive JWT token',
+      'GET /public': 'Public route (no auth required)',
+      'GET /user-profile': 'User profile (requires User role)',
+      'GET /moderator-panel': 'Moderator panel (requires Moderator role)',
+      'GET /admin-dashboard': 'Admin dashboard (requires Admin role)',
+      'POST /verify-token': 'Verify JWT token'
+    },
+    testUsers: [
+      { username: 'adminUser', password: 'admin123', role: 'Admin' },
+      { username: 'moderatorUser', password: 'moderator123', role: 'Moderator' },
+      { username: 'regularUser', password: 'user123', role: 'User' },
+      { username: 'viewerUser', password: 'viewer123', role: 'Viewer' }
+    ]
+  });
+});
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`🚀 RBAC Server running on http://localhost:${PORT}`);
+  console.log(`📋 Test Users:`);
+  users.forEach(user => {
+    console.log(`   👤 ${user.username} / ${user.password} (${user.role})`);
+  });
+  console.log(`\n🔐 Test the RBAC system with different users!`);
+});
+JAVASCRIPT
